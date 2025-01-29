@@ -1,0 +1,8 @@
+thresholds:
+  confidence: 0.9
+  max_drawdown: 0.1
+  cooldown: 3600
+
+paths:
+  model: "models/trained/xgboost_model.pkl"
+  data: "data/processed/"
