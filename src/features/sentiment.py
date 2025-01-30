@@ -5,8 +5,8 @@ from typing import List
 
 class SentimentAnalyzer:
     def __init__(self):
-        self.tokenizer = AutoTokenizer.from_pretrained("ProsusAI/finbert")
-        self.model = AutoModelForSequenceClassification.from_pretrained("ProsusAI/finbert")
+        self.tokenizer = AutoTokenizer.from_pretrained("ProsusAI/finbert", timeout=60)
+        self.model = AutoModelForSequenceClassification.from_pretrained("ProsusAI/finbert", timeout=60)
     
     def analyze(self, texts: List[str]) -> float:
         if not texts:
