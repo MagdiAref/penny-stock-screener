@@ -1,3 +1,6 @@
+import asyncio
+import os
+import requests
 import redis
 import json
 from datetime import datetime, timedelta
