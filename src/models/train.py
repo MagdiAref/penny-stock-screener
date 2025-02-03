@@ -1,39 +1,67 @@
 import pandas as pd
-from xgboost_model import StockClassifier
-from features.technical_analysis import calculate_ta
-from features.sentiment import SentimentAnalyzer
+import numpy as np
+from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
 import joblib
+from pathlib import Path
+import yaml
+from dotenv import load_dotenv
+from ..features import technical_indicators as ti
 
-def load_training_data():
-    # Replace with your historical data (columns: timestamp, symbol, open, high, low, close, volume)
-    df = pd.read_csv("data/processed/historical.csv")
-    df['target'] = (df['close'].shift(-24) > df['close'] * 1.10).astype(int)  # 10% gain in 24h
-    return df.dropna()
+load_dotenv("../config/.env")
 
-def extract_features(df: pd.DataFrame):
-    analyzer = SentimentAnalyzer()
-    features = []
+def load_config():
+    with open("../config/config.yaml") as f:
+        return yaml.safe_load(f)
+
+def load_and_process_data():
+    config = load_config()
+    dfs = []
     
-    for symbol in df['symbol'].unique():
-        symbol_df = df[df['symbol'] == symbol]
-        ta_data = calculate_ta(symbol_df['close'])
-        sentiment = analyzer.analyze(symbol_df['news_headline'].tolist())
-        
-        features.append({
-            "symbol": symbol,
-            "rsi": ta_data['rsi'],
-            "macd_diff": ta_data['macd'] - ta_data['macd_signal'],
-            "sentiment": sentiment,
-            "target": symbol_df['target'].iloc[0]
-        })
+    for symbol in config['data']['symbols']:
+        try:
+            df = pd.read_csv(f"data/raw/historical/{symbol}_raw.csv")
+            df = _engineer_features(df)
+            dfs.append(df)
+        except FileNotFoundError:
+            continue
+            
+    return pd.concat(dfs).dropna()
+
+def _engineer_features(df: pd.DataFrame) -> pd.DataFrame:
+    df['RSI'] = ti.calculate_rsi(df['Close'])
+    df['Volume_Spike'] = ti.detect_volume_spikes(df['Volume'])
+    df['MACD_Cross'] = df['MACD'] > df['Signal']
+    df['Target'] = (df['Close'].shift(-5) > df['Close']).astype(int)
+    return df
+
+def train_model():
+    df = load_and_process_data()
+    features = ['RSI', 'Volume_Spike', 'MACD_Cross', 'Price_Change']
     
-    return pd.DataFrame(features)
+    X = df[features]
+    y = df['Target']
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+    
+    model = XGBClassifier(
+        n_estimators=500,
+        learning_rate=0.05,
+        max_depth=5,
+        subsample=0.8,
+        eval_metric='logloss',
+        early_stopping_rounds=20
+    )
+    
+    model.fit(X_train, y_train, 
+             eval_set=[(X_test, y_test)],
+             verbose=True)
+    
+    save_path = Path("models/trained")
+    save_path.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, save_path / "xgboost_model.pkl")
+    
+    print(f"Model trained with accuracy: {model.score(X_test, y_test):.2%}")
 
 if __name__ == "__main__":
-    df = load_training_data()
-    features_df = extract_features(df)
-    X, y = features_df.drop("target", axis=1), features_df['target']
-    
-    model = StockClassifier()
-    model.train(X, y)
-    model.save("models/trained/xgboost_model.pkl")
+    train_model()
