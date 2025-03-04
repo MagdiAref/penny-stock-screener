@@ -4,8 +4,9 @@ from typing import Dict, Optional
 from dotenv import load_dotenv
 import os
 import time 
+from pathlib import Path 
 
-load_dotenv("../config/.env")
+load_dotenv(Path(__file__).resolve().parent.parent.parent / "config" / ".env")
 
 class RedisManager:
     def __init__(self):

@@ -1,8 +1,31 @@
+# Risk Management
 thresholds:
-  confidence: 0.9
-  max_drawdown: 0.1
-  cooldown: 3600
+  confidence: 0.9  # Minimum prediction confidence
+  max_drawdown: 0.1  # Max 10% loss per trade
+  cooldown: 3600  # 1 hour between alerts
+  position_size: 0.05  # 5% of portfolio
 
+# Data & Storage
 paths:
   model: "models/trained/xgboost_model.pkl"
   data: "data/processed/"
+  raw_data: "data/raw/historical/"
+  alerts_log: "logs/alerts.log"
+
+# Market Parameters
+data:
+  symbols: ["BBAI", "ACHR", "LUNR"]
+  update_interval: 1800  # 30 minutes
+  history_window: 90  # Days of historical data
+
+# Model Configuration
+model:
+  features: ["rsi", "volume_spike", "macd_cross", "sentiment"]
+  retrain_interval: 86400  # 24 hours
+  lookahead_window: 5  # Predict 5-day returns
+
+# Redis Settings
+redis:
+  cache_ttl: 7200  # 2 hours
+  max_connections: 50
+  alert_history: 100  # Keep last 100 alerts

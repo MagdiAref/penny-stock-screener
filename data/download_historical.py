@@ -28,11 +28,16 @@ def download_penny_stock(symbol: str, years: int = 3) -> pd.DataFrame:
         return pd.DataFrame()
 
 def _add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate technical indicators"""
     df['RSI'] = _compute_rsi(df['Close'])
     df['Volume_MA20'] = df['Volume'].rolling(20).mean()
     df['Price_Change'] = df['Close'].pct_change()
+    df['MACD'] = df['Close'].ewm(span=12, adjust=False).mean() - df['Close'].ewm(span=26, adjust=False).mean()
+    df['Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
+    df['Bollinger_Upper'] = df['Close'].rolling(20).mean() + 2 * df['Close'].rolling(20).std()
+    df['Bollinger_Lower'] = df['Close'].rolling(20).mean() - 2 * df['Close'].rolling(20).std()
+    df['ATR'] = df['Close'].rolling(14).std()
     return df.dropna()
+
 
 def _compute_rsi(series: pd.Series, window: int = 14) -> pd.Series:
     """Relative Strength Index calculation"""
@@ -53,6 +58,6 @@ def _save_raw_data(symbol: str, df: pd.DataFrame):
     df.to_csv(raw_path / f"{symbol}_raw.csv", index=True)
 
 if __name__ == "__main__":
-    test_symbols = ["PHUN", "REVB", "BBAI"]
+    test_symbols = ["ACHR", "LUNR", "BBAI"]
     for sym in test_symbols:
         download_penny_stock(sym)

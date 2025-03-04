@@ -6,12 +6,13 @@ import joblib
 from pathlib import Path
 import yaml
 from dotenv import load_dotenv
-from ..features import technical_indicators as ti
+from src.features import technical_indicators as ti
 
-load_dotenv("../config/.env")
+load_dotenv(Path(__file__).resolve().parent.parent.parent / "config" / ".env")
 
 def load_config():
-    with open("../config/config.yaml") as f:
+    config_path = Path(__file__).resolve().parent.parent.parent / "config" / "config.yaml"
+    with open(config_path) as f:
         return yaml.safe_load(f)
 
 def load_and_process_data():
@@ -29,11 +30,16 @@ def load_and_process_data():
     return pd.concat(dfs).dropna()
 
 def _engineer_features(df: pd.DataFrame) -> pd.DataFrame:
+    # Ensure all numeric columns are properly converted
+    df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
+    df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce')
+
     df['RSI'] = ti.calculate_rsi(df['Close'])
     df['Volume_Spike'] = ti.detect_volume_spikes(df['Volume'])
     df['MACD_Cross'] = df['MACD'] > df['Signal']
     df['Target'] = (df['Close'].shift(-5) > df['Close']).astype(int)
-    return df
+
+    return df.dropna()  # Drop rows with missing values
 
 def train_model():
     df = load_and_process_data()
